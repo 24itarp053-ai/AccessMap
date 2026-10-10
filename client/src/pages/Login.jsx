@@ -1,19 +1,40 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { User, Lock, ArrowRight, Info, MapPin } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { User, Lock, ArrowRight, Info, MapPin, Loader2, AlertCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleLoginDemo = (e) => {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogin = async (e) => {
     e.preventDefault();
-    alert("Frontend Auth Demo: Live backend server authentication will be triggered once your teammate's server is connected.");
+    setErrorMsg('');
+
+    if (!email.trim() || !password) {
+      setErrorMsg('Please enter both email address and password.');
+      return;
+    }
+
+    setLoading(true);
+    const res = await login(email.trim(), password);
+    setLoading(false);
+
+    if (res.success) {
+      navigate('/');
+    } else {
+      setErrorMsg(res.error || 'Failed to sign in. Please verify your credentials.');
+    }
   };
 
   return (
     <div className="max-w-md mx-auto my-12 px-4 space-y-6 bg-[#fcfaf6]">
-      
+
       <div className="text-center space-y-2">
         <div className="w-12 h-12 bg-[#132e22] text-[#fcfaf6] rounded-xl flex items-center justify-center mx-auto shadow-xs">
           <MapPin className="w-6 h-6 text-amber-400" />
@@ -28,14 +49,22 @@ export default function Login() {
       <div className="bg-[#f4eedf] p-3.5 rounded-xl border border-[#d8caa8] flex items-start space-x-2.5 text-xs text-slate-800">
         <Info className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
         <div>
-          <strong className="block text-slate-900 font-bold">API Authentication Notice:</strong>
-          <span>This UI component is configured for JWT handling via `client/src/services/api.js`. Live login endpoint `/api/auth/login` will link automatically when the backend server is running.</span>
+          <strong className="block text-slate-900 font-bold">API Authentication Notice (`POST /api/auth/login`):</strong>
+          <span>Connected to official authentication endpoint. Stores JWT token under <code className="bg-white/80 px-1 py-0.5 rounded">accessmap_token</code> on successful login.</span>
         </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-[#e8e2d8] p-6 sm:p-8 shadow-md space-y-5">
-        <form onSubmit={handleLoginDemo} className="space-y-4">
-          
+
+        {errorMsg && (
+          <div className="p-3.5 bg-red-50 text-red-900 border border-red-200 rounded-xl text-xs flex items-start space-x-2">
+            <AlertCircle className="w-4 h-4 text-red-700 shrink-0 mt-0.5" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleLogin} className="space-y-4">
+
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
               Email Address
@@ -72,10 +101,20 @@ export default function Login() {
 
           <button
             type="submit"
-            className="w-full py-3 px-4 bg-[#132e22] hover:bg-[#1b4332] text-white font-bold text-sm rounded-xl transition shadow-xs flex items-center justify-center space-x-2"
+            disabled={loading}
+            className="w-full py-3 px-4 bg-[#132e22] hover:bg-[#1b4332] text-white font-bold text-sm rounded-xl transition shadow-xs flex items-center justify-center space-x-2 disabled:opacity-50"
           >
-            <span>Sign In</span>
-            <ArrowRight className="w-4 h-4 text-amber-400" />
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Signing In...</span>
+              </>
+            ) : (
+              <>
+                <span>Sign In (`POST /api/auth/login`)</span>
+                <ArrowRight className="w-4 h-4 text-amber-400" />
+              </>
+            )}
           </button>
         </form>
 

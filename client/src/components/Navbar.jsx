@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { MapPin, ShieldAlert, User, Menu, X, Info, FileText, CheckSquare, Layers } from 'lucide-react';
+import { MapPin, ShieldAlert, User as UserIcon, Menu, X, Info, FileText, CheckSquare, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const { user, isAuthenticated, logout } = useAuth();
 
   const navLinks = [
     { name: 'Home', path: '/' },
@@ -25,10 +27,10 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 bg-[#fcfaf6]/90 backdrop-blur-md border-b border-[#e8e2d8]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
-          
+
           {/* Brand Logo */}
-          <Link 
-            to="/" 
+          <Link
+            to="/"
             className="flex items-center space-x-3 group focus:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-800 rounded-lg p-1"
           >
             <div className="w-10 h-10 bg-[#132e22] text-[#fcfaf6] rounded-lg flex items-center justify-center shadow-xs group-hover:bg-[#1b4332] transition">
@@ -66,18 +68,42 @@ export default function Navbar() {
 
           {/* Auth Controls */}
           <div className="hidden md:flex items-center space-x-3">
-            <Link
-              to="/login"
-              className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-emerald-900 hover:bg-[#f4eedf] rounded-lg transition"
-            >
-              Sign In
-            </Link>
-            <Link
-              to="/register"
-              className="px-4.5 py-2 text-sm font-semibold text-white bg-emerald-800 hover:bg-emerald-900 rounded-lg shadow-xs transition border border-emerald-950"
-            >
-              Register
-            </Link>
+            {isAuthenticated && user ? (
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2 px-3 py-1.5 bg-[#f4eedf] rounded-lg border border-[#d8caa8] text-xs font-semibold text-slate-800">
+                  <UserIcon className="w-4 h-4 text-emerald-800" />
+                  <span className="max-w-[120px] truncate">{user.name || user.email}</span>
+                  {user.isMock && (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-amber-200 text-amber-900 rounded uppercase">
+                      Demo
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  onClick={logout}
+                  className="px-3 py-2 text-xs font-bold text-red-800 hover:text-red-900 hover:bg-red-50 rounded-lg transition flex items-center gap-1 border border-red-200"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Log Out</span>
+                </button>
+              </div>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-emerald-900 hover:bg-[#f4eedf] rounded-lg transition"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  to="/register"
+                  className="px-4.5 py-2 text-sm font-semibold text-white bg-emerald-800 hover:bg-emerald-900 rounded-lg shadow-xs transition border border-emerald-950"
+                >
+                  Register
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -112,20 +138,41 @@ export default function Navbar() {
             </Link>
           ))}
           <div className="pt-4 border-t border-[#e8e2d8] flex flex-col space-y-2">
-            <Link
-              to="/login"
-              onClick={() => setMobileMenuOpen(false)}
-              className="w-full text-center py-2.5 text-sm font-medium text-slate-800 bg-[#f4eedf] rounded-lg"
-            >
-              Sign In
-            </Link>
-            <Link
-              to="/register"
-              onClick={() => setMobileMenuOpen(false)}
-              className="w-full text-center py-2.5 text-sm font-semibold text-white bg-emerald-800 rounded-lg"
-            >
-              Register
-            </Link>
+            {isAuthenticated && user ? (
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2 px-3 py-2 bg-[#f4eedf] rounded-lg border border-[#d8caa8] text-xs font-semibold text-slate-800">
+                  <UserIcon className="w-4 h-4 text-emerald-800" />
+                  <span>Logged in as <strong>{user.name || user.email}</strong></span>
+                  {user.isMock && <span className="text-[9px] font-bold px-1.5 py-0.5 bg-amber-200 text-amber-900 rounded uppercase">Demo</span>}
+                </div>
+                <button
+                  onClick={() => {
+                    logout();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full text-center py-2.5 text-xs font-bold text-red-800 bg-red-50 border border-red-200 rounded-lg"
+                >
+                  Log Out
+                </button>
+              </div>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full text-center py-2.5 text-sm font-medium text-slate-800 bg-[#f4eedf] rounded-lg"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  to="/register"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full text-center py-2.5 text-sm font-semibold text-white bg-emerald-800 rounded-lg"
+                >
+                  Register
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}
