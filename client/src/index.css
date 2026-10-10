@@ -1,40 +1,67 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
 
-:root {
-  --primary-teal: #0d9488;
-  --primary-teal-dark: #0f766e;
-  --accessible-green: #16a34a;
-  --barrier-red: #dc2626;
-  --warning-amber: #d97706;
+@theme {
+  --font-serif: "Newsreader", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
 }
 
 body {
   margin: 0;
   padding: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background-color: #f8fafc;
-  color: #0f172a;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  background-color: #fcfaf6;
+  color: #121824;
+  overflow-x: hidden;
 }
 
-#root {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+.font-serif {
+  font-family: 'Newsreader', Georgia, serif;
 }
 
-/* Leaflet Map Fixes */
+/* Accessible Focus Ring */
+*:focus-visible {
+  outline: 2px solid #164e39;
+  outline-offset: 2px;
+}
+
+/* Leaflet Map Styling & Fixes */
 .leaflet-container {
   width: 100%;
   height: 100%;
-  min-height: 400px;
-  z-index: 1;
+  background-color: #f5f2eb;
+  font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
-/* Custom Glassmorphism & High-Contrast styles */
-.glass-panel {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 12px 30px -10px rgba(18, 24, 36, 0.15);
+  border: 1px solid #e8e2d8;
+  background-color: #ffffff;
+}
+
+.leaflet-popup-content {
+  margin: 8px 12px;
+  line-height: 1.4;
+}
+
+.leaflet-popup-tip {
+  background-color: #ffffff;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f5f2eb;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4cebe;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #b8b09d;
 }

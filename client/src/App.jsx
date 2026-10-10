@@ -16,7 +16,7 @@ import Register from './pages/Register';
 function App() {
   return (
     <Router>
-      <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
+      <div className="min-h-screen flex flex-col bg-[#fcfaf6] text-slate-900 font-sans antialiased">
         <Navbar />
         <main className="flex-1">
           <Routes>
