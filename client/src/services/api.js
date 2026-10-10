@@ -1,6 +1,17 @@
 import axios from 'axios';
 
-// Configurable Base URL from environment variable, default to '/api' for Vite dev proxy or backend server
+/**
+ * API Base URL Configuration:
+ * 
+ * 1. Default (Proxy-Relative Path): '/api'
+ *    For local development, requests starting with '/api' are proxied by the Vite dev server
+ *    (running on http://localhost:5173) to http://localhost:5000.
+ *    This avoids browser CORS restrictions when the local backend has no CORS middleware enabled.
+ * 
+ * 2. Optional Direct URL (e.g. VITE_API_BASE_URL=https://api.accessmap.org/api):
+ *    If VITE_API_BASE_URL is explicitly set to a full absolute URL, Axios will request that endpoint directly.
+ *    Avoid setting VITE_API_BASE_URL to '/api/api' or appending extra trailing paths to prevent duplicate prefixes.
+ */
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const apiClient = axios.create({
@@ -23,7 +34,7 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor for logging & unified handling
+// Response interceptor for logging & unified error handling
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
