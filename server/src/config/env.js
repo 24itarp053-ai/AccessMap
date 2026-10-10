@@ -13,4 +13,10 @@ const config = {
   mongodbUri: process.env.MONGODB_URI || ''
 };
 
+export const validateConfig = () => {
+  if (!config.mongodbUri) {
+    throw new Error('MONGODB_URI environment variable is required');
+  }
+};
+
 export default config;
