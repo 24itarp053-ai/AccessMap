@@ -73,9 +73,17 @@ export default function Navbar() {
                 <div className="flex items-center space-x-2 px-3 py-1.5 bg-[#f4eedf] rounded-lg border border-[#d8caa8] text-xs font-semibold text-slate-800">
                   <UserIcon className="w-4 h-4 text-emerald-800" />
                   <span className="max-w-[120px] truncate">{user.name || user.email}</span>
-                  {user.isMock && (
+                  {user.role === 'admin' ? (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-purple-200 text-purple-900 rounded uppercase">
+                      Admin
+                    </span>
+                  ) : user.isMock ? (
                     <span className="text-[9px] font-bold px-1.5 py-0.5 bg-amber-200 text-amber-900 rounded uppercase">
                       Demo
+                    </span>
+                  ) : (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-emerald-100 text-emerald-900 rounded uppercase">
+                      User
                     </span>
                   )}
                 </div>
@@ -143,7 +151,13 @@ export default function Navbar() {
                 <div className="flex items-center space-x-2 px-3 py-2 bg-[#f4eedf] rounded-lg border border-[#d8caa8] text-xs font-semibold text-slate-800">
                   <UserIcon className="w-4 h-4 text-emerald-800" />
                   <span>Logged in as <strong>{user.name || user.email}</strong></span>
-                  {user.isMock && <span className="text-[9px] font-bold px-1.5 py-0.5 bg-amber-200 text-amber-900 rounded uppercase">Demo</span>}
+                  {user.role === 'admin' ? (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-purple-200 text-purple-900 rounded uppercase">Admin</span>
+                  ) : user.isMock ? (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-amber-200 text-amber-900 rounded uppercase">Demo</span>
+                  ) : (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-emerald-100 text-emerald-900 rounded uppercase">User</span>
+                  )}
                 </div>
                 <button
                   onClick={() => {
