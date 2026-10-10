@@ -210,7 +210,7 @@ export async function trackReport(trackingCode) {
     const resData = response.data;
 
     if (resData && (resData.status === 'success' || resData.data)) {
-      const report = resData.data || resData;
+      const report = resData.data?.report || resData.report || resData.data || resData;
       return {
         success: true,
         report,

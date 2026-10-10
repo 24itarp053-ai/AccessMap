@@ -102,21 +102,25 @@ export async function getPlaces() {
     const response = await apiClient.get('/places');
     const resData = response.data;
 
-    // Extract array from response payload
+    // Extract array and pagination from response payload
     let rawList = [];
+    let pagination = null;
     if (Array.isArray(resData)) {
       rawList = resData;
     } else if (resData && Array.isArray(resData.places)) {
       rawList = resData.places;
+      pagination = resData.pagination || null;
     } else if (resData && resData.data && Array.isArray(resData.data.places)) {
       rawList = resData.data.places;
+      pagination = resData.data.pagination || resData.pagination || null;
     } else if (resData && Array.isArray(resData.data)) {
       rawList = resData.data;
+      pagination = resData.pagination || null;
     }
 
     if (rawList && rawList.length > 0) {
       const normalized = rawList.map(normalizePlace).filter(Boolean);
-      return { places: normalized, isFallback: false, source: 'backend' };
+      return { places: normalized, pagination, isFallback: false, source: 'backend' };
     }
 
     // Fallback to mock data if backend array is empty
