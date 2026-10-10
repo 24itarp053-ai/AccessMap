@@ -1,20 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { 
-  MapPin, 
-  Filter, 
-  Search, 
-  CheckCircle2, 
-  AlertTriangle, 
-  ArrowRight, 
-  Layers, 
-  X, 
+import {
+  MapPin,
+  Filter,
+  Search,
+  CheckCircle2,
+  AlertTriangle,
+  ArrowRight,
+  Layers,
+  X,
   Info,
-  Navigation
+  Loader2,
+  Database
 } from 'lucide-react';
-import { AHMEDABAD_PLACES } from '../services/sampleData';
+import { getPlaces } from '../services/placeService';
 
 // Custom Leaflet Icons setup
 delete L.Icon.Default.prototype._getIconUrl;
@@ -27,39 +28,67 @@ L.Icon.Default.mergeOptions({
 // Helper component to smoothly animate map camera panning
 function MapRecenter({ center }) {
   const map = useMap();
-  map.setView(center, 14, { animate: true });
+  useEffect(() => {
+    if (center && typeof center[0] === 'number' && typeof center[1] === 'number') {
+      map.setView(center, 14, { animate: true });
+    }
+  }, [center, map]);
   return null;
 }
 
 export default function MapPage() {
-  const [places, setPlaces] = useState(AHMEDABAD_PLACES);
-  const [selectedPlace, setSelectedPlace] = useState(AHMEDABAD_PLACES[0]);
+  const [places, setPlaces] = useState([]);
+  const [selectedPlace, setSelectedPlace] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('ALL');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [dataSource, setDataSource] = useState('mock');
 
-  // Center map on Ahmedabad
-  const mapCenter = [selectedPlace.lat, selectedPlace.lng];
+  useEffect(() => {
+    async function loadPlacesData() {
+      setLoading(true);
+      const result = await getPlaces();
+      const loadedPlaces = result.places || [];
+      setPlaces(loadedPlaces);
+      setDataSource(result.source || 'mock');
+      if (loadedPlaces.length > 0) {
+        // Find first place with valid coordinates if possible
+        const validPlace = loadedPlaces.find((p) => typeof p.lat === 'number' && typeof p.lng === 'number');
+        setSelectedPlace(validPlace || loadedPlaces[0]);
+      }
+      setLoading(false);
+    }
+    loadPlacesData();
+  }, []);
 
-  // Filter places based on search query and accessibility filters
+  // Center map on selected place or default to Ahmedabad center
+  const mapCenter = selectedPlace && typeof selectedPlace.lat === 'number' && typeof selectedPlace.lng === 'number'
+    ? [selectedPlace.lat, selectedPlace.lng]
+    : [23.0225, 72.5714];
+
+  // Filter places based on search query and accessibility status filters
   const filteredPlaces = places.filter((place) => {
-    const matchesSearch = place.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          place.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          place.address.toLowerCase().includes(searchQuery.toLowerCase());
+    const query = searchQuery.toLowerCase();
+    const matchesSearch =
+      (place.name && place.name.toLowerCase().includes(query)) ||
+      (place.category && place.category.toLowerCase().includes(query)) ||
+      (place.address && place.address.toLowerCase().includes(query)) ||
+      (place.area && place.area.toLowerCase().includes(query));
 
     if (selectedFilter === 'ALL') return matchesSearch;
-    if (selectedFilter === 'FULLY') return matchesSearch && place.accessibilityStatus.includes('Fully');
-    if (selectedFilter === 'PARTIAL') return matchesSearch && place.accessibilityStatus.includes('Partially');
-    if (selectedFilter === 'BARRIER') return matchesSearch && place.accessibilityStatus.includes('Inaccessible');
+    if (selectedFilter === 'FULLY') return matchesSearch && place.accessibilityStatus?.includes('Fully');
+    if (selectedFilter === 'PARTIAL') return matchesSearch && place.accessibilityStatus?.includes('Partially');
+    if (selectedFilter === 'BARRIER') return matchesSearch && place.accessibilityStatus?.includes('Inaccessible');
     return matchesSearch;
   });
 
   return (
     <div className="flex flex-col h-[calc(100vh-5rem)] relative overflow-hidden bg-[#fcfaf6]">
-      
+
       {/* Top Filter & Search Header */}
       <div className="bg-white border-b border-[#e8e2d8] px-4 py-3 z-20 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        
+
         <div className="flex items-center space-x-3">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -69,8 +98,17 @@ export default function MapPage() {
             <Filter className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="font-serif text-lg font-bold text-slate-900 leading-tight">
-              Accessibility Map — Ahmedabad
+            <h1 className="font-serif text-lg font-bold text-slate-900 leading-tight flex items-center gap-2">
+              <span>Accessibility Map — Ahmedabad</span>
+              {dataSource === 'backend' ? (
+                <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-full flex items-center gap-1">
+                  <Database className="w-3 h-3 text-emerald-700" /> Live Backend API
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded-full">
+                  Sample Data Fallback
+                </span>
+              )}
             </h1>
             <p className="text-xs text-slate-500">
               Interactive map displaying step-free routes & barrier locations
@@ -88,7 +126,7 @@ export default function MapPage() {
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
-            All Locations ({AHMEDABAD_PLACES.length})
+            All Locations ({places.length})
           </button>
 
           <button
@@ -129,7 +167,7 @@ export default function MapPage() {
 
       {/* Main Map + Sidebar Workspace */}
       <div className="flex-1 flex relative">
-        
+
         {/* Left Places List Drawer / Sidebar */}
         <aside
           className={`absolute md:relative inset-y-0 left-0 z-20 w-full sm:w-96 bg-white border-r border-[#e8e2d8] shadow-lg md:shadow-none transform transition-transform duration-300 flex flex-col ${
@@ -160,17 +198,25 @@ export default function MapPage() {
 
           {/* Places Cards List */}
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
-            {filteredPlaces.length === 0 ? (
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-12 text-slate-500 space-y-2">
+                <Loader2 className="w-6 h-6 animate-spin text-emerald-800" />
+                <p className="text-xs font-semibold">Loading places from API...</p>
+              </div>
+            ) : filteredPlaces.length === 0 ? (
               <div className="text-center py-10 px-4 text-slate-500">
                 <p className="text-sm font-semibold">No locations found</p>
                 <p className="text-xs text-slate-400 mt-1">Try resetting your filter or search query.</p>
               </div>
             ) : (
               filteredPlaces.map((place) => {
-                const isSelected = selectedPlace.id === place.id;
+                const isSelected = selectedPlace && selectedPlace.id === place.id;
+                const scoreDisplay = place.accessibilityScore !== null ? `Score ${place.accessibilityScore}` : 'Score: N/A';
+                const hasValidCoords = typeof place.lat === 'number' && typeof place.lng === 'number';
+
                 return (
                   <div
-                    key={place.id}
+                    key={place.id || place._id}
                     onClick={() => setSelectedPlace(place)}
                     className={`p-4 rounded-xl border transition cursor-pointer space-y-2 ${
                       isSelected
@@ -183,22 +229,28 @@ export default function MapPage() {
                         {place.name}
                       </h3>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                        place.accessibilityScore >= 80 
-                          ? 'bg-emerald-100 text-emerald-800' 
-                          : place.accessibilityScore >= 50
+                        place.accessibilityScore !== null && place.accessibilityScore >= 80
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : place.accessibilityScore !== null && place.accessibilityScore >= 50
                           ? 'bg-amber-100 text-amber-800'
-                          : 'bg-red-100 text-red-800'
+                          : place.accessibilityScore !== null
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-slate-100 text-slate-700'
                       }`}>
-                        Score {place.accessibilityScore}
+                        {scoreDisplay}
                       </span>
                     </div>
 
                     <p className="text-xs text-slate-500 line-clamp-1">{place.address}</p>
 
+                    {!hasValidCoords && (
+                      <span className="text-[10px] text-amber-700 italic block">Map coordinates unmapped</span>
+                    )}
+
                     <div className="flex items-center justify-between text-[11px] text-slate-600 pt-1">
                       <span className="font-medium text-slate-700">{place.category}</span>
                       <Link
-                        to={`/places/${place.id}`}
+                        to={`/places/${place.id || place._id}`}
                         onClick={(e) => e.stopPropagation()}
                         className="text-emerald-800 font-semibold hover:underline flex items-center gap-1"
                       >
@@ -214,7 +266,9 @@ export default function MapPage() {
           {/* Drawer Footer Notice */}
           <div className="p-3 bg-[#fcfaf6] border-t border-[#e8e2d8] text-[11px] text-slate-500 flex items-center justify-between">
             <span>Displaying {filteredPlaces.length} locations</span>
-            <span className="text-amber-800 font-medium">Sample Data</span>
+            <span className="text-slate-700 font-medium">
+              {dataSource === 'backend' ? 'GET /api/places' : 'Mock Fallback'}
+            </span>
           </div>
         </aside>
 
@@ -230,39 +284,43 @@ export default function MapPage() {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            
+
             <MapRecenter center={mapCenter} />
 
-            {filteredPlaces.map((place) => (
-              <Marker
-                key={place.id}
-                position={[place.lat, place.lng]}
-                eventHandlers={{
-                  click: () => setSelectedPlace(place),
-                }}
-              >
-                <Popup>
-                  <div className="space-y-2 p-1 max-w-xs">
-                    <div className="flex items-start justify-between gap-2">
-                      <strong className="text-xs font-bold text-slate-900">{place.name}</strong>
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">
-                        {place.accessibilityScore}/100
-                      </span>
+            {filteredPlaces.map((place) => {
+              if (typeof place.lat !== 'number' || typeof place.lng !== 'number') return null;
+              const scoreBadge = place.accessibilityScore !== null ? `${place.accessibilityScore}/100` : 'N/A';
+              return (
+                <Marker
+                  key={place.id || place._id}
+                  position={[place.lat, place.lng]}
+                  eventHandlers={{
+                    click: () => setSelectedPlace(place),
+                  }}
+                >
+                  <Popup>
+                    <div className="space-y-2 p-1 max-w-xs">
+                      <div className="flex items-start justify-between gap-2">
+                        <strong className="text-xs font-bold text-slate-900">{place.name}</strong>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">
+                          {scoreBadge}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600">{place.category}</p>
+                      <p className="text-[11px] text-slate-500 line-clamp-2">{place.description}</p>
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                        <Link
+                          to={`/places/${place.id || place._id}`}
+                          className="text-xs font-semibold text-emerald-800 hover:underline flex items-center gap-1"
+                        >
+                          View Full Place Page <ArrowRight className="w-3 h-3" />
+                        </Link>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-slate-600">{place.category}</p>
-                    <p className="text-[11px] text-slate-500 line-clamp-2">{place.description}</p>
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                      <Link
-                        to={`/places/${place.id}`}
-                        className="text-xs font-semibold text-emerald-800 hover:underline flex items-center gap-1"
-                      >
-                        View Full Place Page <ArrowRight className="w-3 h-3" />
-                      </Link>
-                    </div>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
+                  </Popup>
+                </Marker>
+              );
+            })}
           </MapContainer>
         </main>
 
