@@ -19,7 +19,15 @@ Copy `.env.example` to `.env` in the `server/` directory:
 PORT=5000
 NODE_ENV=development
 MONGODB_URI=mongodb://127.0.0.1:27017/accessmap
+JWT_SECRET=your_secure_random_jwt_secret_at_least_32_chars_long
+JWT_EXPIRES_IN=7d
 ```
+
+> **Security Notice**: `JWT_SECRET` must be a strong, cryptographically secure secret string of at least 32 characters. Never commit `.env` or use default placeholder values in production.
+> You can generate a random secret via Node.js CLI:
+> ```bash
+> node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+> ```
 
 ### 3. Database Seeding
 To populate sample places for local testing and demonstration:
@@ -46,6 +54,84 @@ npm run seed
 - `GET /api/health`
   - Returns service status and MongoDB connection state (`connected` / `disconnected`).
 
+### 🔐 Authentication & Authorization API
+
+- `POST /api/auth/register`
+  - Public registration for new user accounts.
+  - **Role Security**: Public registration hardcodes `role: "user"`. Client-supplied role attempts are ignored.
+  - **Validation Rules**:
+    - `name` *(required)* — String, 2 to 100 characters.
+    - `email` *(required)* — Valid normalized email address (unique).
+    - `password` *(required)* — String, 8 to 128 characters (maximum 72 UTF-8 bytes to prevent bcrypt truncation).
+  - **Example Request Body**:
+    ```json
+    {
+      "name": "Jane Doe",
+      "email": "jane@example.com",
+      "password": "SecurePassword123"
+    }
+    ```
+  - **Example Response (201 Created)**:
+    ```json
+    {
+      "status": "success",
+      "message": "User registered successfully",
+      "data": {
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "user": {
+          "id": "65f123456789abcdef012345",
+          "name": "Jane Doe",
+          "email": "jane@example.com",
+          "role": "user",
+          "createdAt": "2026-10-10T16:00:00.000Z"
+        }
+      }
+    }
+    ```
+
+- `POST /api/auth/login`
+  - User authentication and JWT token issuance.
+  - **Example Request Body**:
+    ```json
+    {
+      "email": "jane@example.com",
+      "password": "SecurePassword123"
+    }
+    ```
+  - **Example Response (200 OK)**:
+    ```json
+    {
+      "status": "success",
+      "data": {
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "user": {
+          "id": "65f123456789abcdef012345",
+          "name": "Jane Doe",
+          "email": "jane@example.com",
+          "role": "user"
+        }
+      }
+    }
+    ```
+
+- `GET /api/auth/me`
+  - Protected endpoint returning profile information for the authenticated user.
+  - **Header Required**: `Authorization: Bearer <token>`
+  - **Example Response (200 OK)**:
+    ```json
+    {
+      "status": "success",
+      "data": {
+        "user": {
+          "id": "65f123456789abcdef012345",
+          "name": "Jane Doe",
+          "email": "jane@example.com",
+          "role": "user"
+        }
+      }
+    }
+    ```
+
 ### 📍 Public Places API
 - `GET /api/places`
   - Retrieve list of public places with filtering, search, and pagination.
@@ -61,8 +147,6 @@ npm run seed
 
 - `GET /api/places/:id`
   - Retrieve detailed information for a single place by its MongoDB ObjectId.
-  - **Example Request**:
-    `GET http://localhost:5000/api/places/65f123456789abcdef012345`
 
 ### 🚧 Accessibility Barrier Reports API
 
@@ -134,5 +218,6 @@ npm run seed
 
 ## 🛠️ Architecture & Conventions
 - **ES Modules**: Standard `import` / `export` syntax.
+- **Security**: Passwords hashed with `bcryptjs` (salt round 10). Passwords excluded from all queries and JSON responses (`select: false`). Passwords checked for 72 UTF-8 byte limit. JWT signed with `HS256`.
 - **Centralized Error Handling**: Errors return safe, formatted JSON without exposing production stack traces.
 - **Graceful Shutdown**: Intercepts `SIGINT` / `SIGTERM` signals to cleanly close HTTP listeners and MongoDB connections.
