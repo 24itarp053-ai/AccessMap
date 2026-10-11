@@ -1,7 +1,14 @@
 import crypto from 'crypto';
 import mongoose from 'mongoose';
-import Report, { ALLOWED_CATEGORIES } from '../models/report.model.js';
+import Report, { ALLOWED_CATEGORIES, ALLOWED_STATUSES } from '../models/report.model.js';
 import Place from '../models/place.model.js';
+
+const ALLOWED_TRANSITIONS = {
+  pending: ['under_review', 'resolved', 'rejected'],
+  under_review: ['resolved', 'rejected'],
+  resolved: ['under_review'],
+  rejected: ['under_review']
+};
 
 const isValidHttpUrl = (urlStr) => {
   try {
@@ -207,6 +214,194 @@ export const trackReport = async (req, res, next) => {
         description: report.description,
         createdAt: report.createdAt,
         updatedAt: report.updatedAt
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getReportsAdmin = async (req, res, next) => {
+  try {
+    const { status, category, page, limit } = req.query;
+    const filter = {};
+
+    if (status !== undefined) {
+      const trimmedStatus = String(status).trim();
+      if (!ALLOWED_STATUSES.includes(trimmedStatus)) {
+        return res.status(400).json({
+          status: 400,
+          error: 'Bad Request',
+          message: `Invalid status filter. Allowed values: ${ALLOWED_STATUSES.join(', ')}`
+        });
+      }
+      filter.status = trimmedStatus;
+    }
+
+    if (category !== undefined) {
+      const trimmedCategory = String(category).trim();
+      if (!ALLOWED_CATEGORIES.includes(trimmedCategory)) {
+        return res.status(400).json({
+          status: 400,
+          error: 'Bad Request',
+          message: `Invalid category filter. Allowed values: ${ALLOWED_CATEGORIES.join(', ')}`
+        });
+      }
+      filter.category = trimmedCategory;
+    }
+
+    let pageNum = 1;
+    if (page !== undefined) {
+      const pageStr = String(page).trim();
+      if (!/^\d+$/.test(pageStr)) {
+        return res.status(400).json({
+          status: 400,
+          error: 'Bad Request',
+          message: 'Parameter "page" must be a positive integer'
+        });
+      }
+      const parsedPage = parseInt(pageStr, 10);
+      if (parsedPage < 1 || !Number.isSafeInteger(parsedPage)) {
+        return res.status(400).json({
+          status: 400,
+          error: 'Bad Request',
+          message: 'Parameter "page" must be a positive integer within valid range'
+        });
+      }
+      pageNum = parsedPage;
+    }
+
+    let limitNum = 10;
+    if (limit !== undefined) {
+      const limitStr = String(limit).trim();
+      if (!/^\d+$/.test(limitStr)) {
+        return res.status(400).json({
+          status: 400,
+          error: 'Bad Request',
+          message: 'Parameter "limit" must be a positive integer between 1 and 100'
+        });
+      }
+      const parsedLimit = parseInt(limitStr, 10);
+      if (parsedLimit < 1 || parsedLimit > 100 || !Number.isSafeInteger(parsedLimit)) {
+        return res.status(400).json({
+          status: 400,
+          error: 'Bad Request',
+          message: 'Parameter "limit" must be a positive integer between 1 and 100'
+        });
+      }
+      limitNum = parsedLimit;
+    }
+
+    const skip = (pageNum - 1) * limitNum;
+    if (!Number.isSafeInteger(skip)) {
+      return res.status(400).json({
+        status: 400,
+        error: 'Bad Request',
+        message: 'Pagination offset exceeds valid range'
+      });
+    }
+
+    const [reports, total] = await Promise.all([
+      Report.find(filter)
+        .select('_id trackingCode description category placeId location photoUrl status createdAt updatedAt')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum),
+      Report.countDocuments(filter)
+    ]);
+
+    res.status(200).json({
+      status: 'success',
+      results: reports.length,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum)
+      },
+      data: { reports }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateReportStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        status: 400,
+        error: 'Bad Request',
+        message: 'Invalid report ID format'
+      });
+    }
+
+    if (
+      status === undefined ||
+      status === null ||
+      typeof status !== 'string' ||
+      !status.trim()
+    ) {
+      return res.status(400).json({
+        status: 400,
+        error: 'Bad Request',
+        message: `Status is required and must be one of: ${ALLOWED_STATUSES.join(', ')}`
+      });
+    }
+
+    const targetStatus = status.trim();
+
+    if (!ALLOWED_STATUSES.includes(targetStatus)) {
+      return res.status(400).json({
+        status: 400,
+        error: 'Bad Request',
+        message: `Invalid status. Allowed values: ${ALLOWED_STATUSES.join(', ')}`
+      });
+    }
+
+    const report = await Report.findById(id);
+
+    if (!report) {
+      return res.status(404).json({
+        status: 404,
+        error: 'Not Found',
+        message: 'Report not found'
+      });
+    }
+
+    if (targetStatus !== report.status) {
+      const allowed = ALLOWED_TRANSITIONS[report.status] || [];
+      if (!allowed.includes(targetStatus)) {
+        return res.status(400).json({
+          status: 400,
+          error: 'Bad Request',
+          message: `Cannot transition report status from '${report.status}' to '${targetStatus}'`
+        });
+      }
+
+      report.status = targetStatus;
+      await report.save();
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Report status updated successfully',
+      data: {
+        report: {
+          _id: report._id,
+          trackingCode: report.trackingCode,
+          description: report.description,
+          category: report.category,
+          placeId: report.placeId,
+          location: report.location,
+          photoUrl: report.photoUrl,
+          status: report.status,
+          createdAt: report.createdAt,
+          updatedAt: report.updatedAt
+        }
       }
     });
   } catch (error) {
